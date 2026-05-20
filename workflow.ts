@@ -1,13 +1,14 @@
 import {
-  createWorkflow,
+  defineWorkflow,
+  sequenceStep,
   type WorkflowExecutionContext,
-  SequenceNodeBuilder,
 } from '@jshookmcp/extension-sdk/workflow';
 
 const workflowId = 'workflow.signing-lineage.v1';
 
-export default createWorkflow(workflowId, 'Signing Lineage')
-  .description(
+export default defineWorkflow(workflowId, 'Signing Lineage', (workflow) =>
+  workflow
+.description(
     'Traces the full signing lineage from ciphertext back to plaintext: intercepts signed requests, locates the signing function via initiator stacks, extracts the parameter normalization chain, hooks intermediate transforms, and captures the complete plaintext → normalize → concat → hash/encrypt → inject pipeline.',
   )
   .tags(['reverse', 'signature', 'lineage', 'crypto', 'trace', 'hook', 'parameter', 'mission'])
@@ -28,7 +29,7 @@ export default createWorkflow(workflowId, 'Signing Lineage')
     );
     const maxConcurrency = Number(ctx.getConfig(`${prefix}.parallel.maxConcurrency`, 3));
 
-    const root = new SequenceNodeBuilder('signing-lineage-root');
+    return sequenceStep('signing-lineage-root', (root) => {
 
     root
       // Phase 1: Network Setup & Navigate
@@ -106,7 +107,7 @@ export default createWorkflow(workflowId, 'Signing Lineage')
         },
       });
 
-    return root;
+    });
   })
   .onStart((ctx) => {
     ctx.emitMetric('workflow_runs_total', 1, 'counter', { workflowId, mission: 'signing_lineage', stage: 'start' });
@@ -117,4 +118,4 @@ export default createWorkflow(workflowId, 'Signing Lineage')
   .onError((ctx, error) => {
     ctx.emitMetric('workflow_errors_total', 1, 'counter', { workflowId, mission: 'signing_lineage', stage: 'error', error: error.name });
   })
-  .build();
+  );
